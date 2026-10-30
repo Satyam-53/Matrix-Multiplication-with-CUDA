@@ -25,7 +25,7 @@ endif
 ifeq ($(static_smem), 1)
         NVCCFLAGS += -DSTATIC_SHARED_MEM
 else
-        dynamic_smem ?= 64
+        dynamic_smem ?= 48
         NVCCFLAGS += -DDYNAMIC_SHARED_MEM_SIZE=$(dynamic_smem)
 endif
 
