@@ -62,7 +62,7 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
         for(int k=0; k<kLimit; k++){
             for(int i=0; i<TILESCALE_M; i++){
                 for(int j=0; j<TILESCALE_N; j++){
-                    _Cij[i][j] += As[ty + i * TILESCALE_M][k] * Bs[k][tx + TILESCALE_N * j];
+                    _Cij[i][j] += As[ty + i * blockDim.y][k] * Bs[k][tx + blockDim.x * j];
                 }
             }
         }
@@ -73,8 +73,8 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
     // Now store multiple CTA outputs.
     for(int i=0; i<TILESCALE_M; i++){
         for(int j=0; j<TILESCALE_N; j++){
-            int I = I_base + ty + i * TILESCALE_M;
-            int J = J_base + tx + j * TILESCALE_N;
+            int I = I_base + ty + i * blockDim.y;
+            int J = J_base + tx + j * blockDim.x;
             if(I < N && J < N){
                 C[I * N + J] = _Cij[i][j];
             }
