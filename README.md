@@ -68,3 +68,11 @@ lspci | grep -i --color 'vga\|3d\|2d'
     Now bx has to stay at 32, so that A access does not create bank conflict for a warp
     But to increase ILP, we can reduce by
     We tried by = 4,8,16 and found best results when by=16. by=8 gave similar results, and by=4 gave bad results due to too less threads.
+
+3. thought process: 
+- We checked that loading of As and Bs is also bank conflict free
+- What if we now load A in col major order since outer pdt requires that?
+    2 methods:
+    1) We take col elemnts of global A and put it in contiguous places in As : disrupts global memory colleascing
+    2) We take row elemnts of gloabl A and put it in columns of As, but since column length of As is a multiple/divisor of 32, when storing col wise in As, we will get bank conflicts
+    So we leave A in the row major order

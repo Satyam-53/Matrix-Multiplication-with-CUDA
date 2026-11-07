@@ -69,26 +69,32 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
         // once all the threads have loaded the tiles into shared memory, we can start the computation.
         int kLimit = min(TILEDIM_K, N - kk * TILEDIM_K);
 
-        for (int k = 0; k < kLimit; k++) {
-
-            _FTYPE_ a_reg[TILESCALE_M];
-            _FTYPE_ b_reg[TILESCALE_N];
+        for (int k0 = 0; k0 < kLimit; k0++) {
 
             #pragma unroll
-            for (int i = 0; i < TILESCALE_M; i++) {
-                a_reg[i] = As[ty + i * blockDim.y][k];
-            }
+            for (int q = 0; q < TILESCALE_K; q++) {
 
-            #pragma unroll
-            for (int j = 0; j < TILESCALE_N; j++) {
-                b_reg[j] = Bs[k][tx + j * blockDim.x];
-            }
+                int k = k0 + q;
+                if (k >= kLimit) continue;
+                _FTYPE_ a_reg[TILESCALE_M];
+                _FTYPE_ b_reg[TILESCALE_N];
 
-            #pragma unroll
-            for (int i = 0; i < TILESCALE_M; i++) {
+                #pragma unroll
+                for (int i = 0; i < TILESCALE_M; i++) {
+                    a_reg[i] = As[ty + i * blockDim.y][k];
+                }
+
                 #pragma unroll
                 for (int j = 0; j < TILESCALE_N; j++) {
-                    _Cij[i][j] += a_reg[i] * b_reg[j];
+                    b_reg[j] = Bs[k][tx + j * blockDim.x];
+                }
+
+                #pragma unroll
+                for (int i = 0; i < TILESCALE_M; i++) {
+                    #pragma unroll
+                    for (int j = 0; j < TILESCALE_N; j++) {
+                        _Cij[i][j] += a_reg[i] * b_reg[j];
+                    }
                 }
             }
         }
