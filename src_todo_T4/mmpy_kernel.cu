@@ -47,7 +47,7 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
     int tid = ty * blockDim.x + tx;
     int I_base = by * TILEDIM_M, J_base = bx*TILEDIM_N;
     // Multiple but independent output accumulators for ILP.
-    _FTYPE_ _Cij[TILESCALE_M][TILESCALE_N] = {};
+    _FTYPE_ _Cij[TILESCALE_K][TILESCALE_M][TILESCALE_N] = {};
 
     for(int kk=0; kk < (N+TILEDIM_K-1)/TILEDIM_K; kk++){
     
@@ -69,13 +69,13 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
         // once all the threads have loaded the tiles into shared memory, we can start the computation.
         int kLimit = min(TILEDIM_K, N - kk * TILEDIM_K);
 
-        for (int k0 = 0; k0 < kLimit; k0++) {
+        for (int k0 = 0; k0 < kLimit; k0+=TILESCALE_K) {
 
             #pragma unroll
             for (int q = 0; q < TILESCALE_K; q++) {
 
                 int k = k0 + q;
-                if (k >= kLimit) continue;
+                // if (k >= kLimit) continue;
                 _FTYPE_ a_reg[TILESCALE_M];
                 _FTYPE_ b_reg[TILESCALE_N];
 
@@ -93,7 +93,7 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
                 for (int i = 0; i < TILESCALE_M; i++) {
                     #pragma unroll
                     for (int j = 0; j < TILESCALE_N; j++) {
-                        _Cij[i][j] += a_reg[i] * b_reg[j];
+                        _Cij[q][i][j] += a_reg[i] * b_reg[j];
                     }
                 }
             }
@@ -114,12 +114,28 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
     }
 
     // Now store multiple CTA outputs.
-    for(int i=0; i<TILESCALE_M; i++){
-        for(int j=0; j<TILESCALE_N; j++){
+    // for(int i=0; i<TILESCALE_M; i++){
+    //     for(int j=0; j<TILESCALE_N; j++){
+    //         int I = I_base + ty + i * blockDim.y;
+    //         int J = J_base + tx + j * blockDim.x;
+    //         if(I < N && J < N){
+    //             C[I * N + J] = _Cij[i][j];
+    //         }
+    //     }
+    // }
+    #pragma unroll
+    for (int i = 0; i < TILESCALE_M; i++) {
+        #pragma unroll
+        for (int j = 0; j < TILESCALE_N; j++) {
+            _FTYPE_ result = 0;
+            #pragma unroll
+            for (int q = 0; q < TILESCALE_K; q++) {
+                result += _Cij[q][i][j];
+            }
             int I = I_base + ty + i * blockDim.y;
             int J = J_base + tx + j * blockDim.x;
-            if(I < N && J < N){
-                C[I * N + J] = _Cij[i][j];
+            if (I < N && J < N) {
+                C[I * N + J] = result;
             }
         }
     }
