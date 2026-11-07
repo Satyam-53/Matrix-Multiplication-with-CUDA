@@ -9,7 +9,7 @@
 #define TILESCALE_N 2 // Enter your own values
 #endif
 #ifndef TILESCALE_K
-#define TILESCALE_K 1 // Enter your own values
+#define TILESCALE_K 4 // Enter your own values
 #endif
 
 #define TILEDIM_M 64 // Enter your own values

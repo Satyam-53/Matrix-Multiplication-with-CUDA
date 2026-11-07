@@ -47,7 +47,7 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
     int tid = ty * blockDim.x + tx;
     int I_base = by * TILEDIM_M, J_base = bx*TILEDIM_N;
     // Multiple but independent output accumulators for ILP.
-    _FTYPE_ _Cij[TILESCALE_K][TILESCALE_M][TILESCALE_N] = {};
+    _FTYPE_ _Cij[TILESCALE_M][TILESCALE_N] = {};
 
     for(int kk=0; kk < (N+TILEDIM_K-1)/TILEDIM_K; kk++){
     
@@ -70,14 +70,14 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
         int kLimit = min(TILEDIM_K, N - kk * TILEDIM_K);
 
         for (int k0 = 0; k0 < kLimit; k0+=TILESCALE_K) {
-
+            _FTYPE_ a_reg[TILESCALE_K][TILESCALE_M];
+            _FTYPE_ b_reg[TILESCALE_K][TILESCALE_N];
             #pragma unroll
             for (int q = 0; q < TILESCALE_K; q++) {
 
                 int k = k0 + q;
                 // if (k >= kLimit) continue;
-                _FTYPE_ a_reg[TILESCALE_K][TILESCALE_M];
-                _FTYPE_ b_reg[TILESCALE_K][TILESCALE_N];
+                
 
                 #pragma unroll
                 for (int i = 0; i < TILESCALE_M; i++) {
