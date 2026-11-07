@@ -76,24 +76,27 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
 
                 int k = k0 + q;
                 // if (k >= kLimit) continue;
-                _FTYPE_ a_reg[TILESCALE_M];
-                _FTYPE_ b_reg[TILESCALE_N];
+                _FTYPE_ a_reg[TILESCALE_K][TILESCALE_M];
+                _FTYPE_ b_reg[TILESCALE_K][TILESCALE_N];
 
                 #pragma unroll
                 for (int i = 0; i < TILESCALE_M; i++) {
-                    a_reg[i] = As[ty + i * blockDim.y][k];
+                    a_reg[q][i] = As[ty + i * blockDim.y][k];
                 }
 
                 #pragma unroll
                 for (int j = 0; j < TILESCALE_N; j++) {
-                    b_reg[j] = Bs[k][tx + j * blockDim.x];
+                    b_reg[q][j] = Bs[k][tx + j * blockDim.x];
                 }
+            }
 
+            #pragma unroll
+            for (int q = 0; q < TILESCALE_K; q++) {
                 #pragma unroll
                 for (int i = 0; i < TILESCALE_M; i++) {
                     #pragma unroll
                     for (int j = 0; j < TILESCALE_N; j++) {
-                        _Cij[q][i][j] += a_reg[i] * b_reg[j];
+                        _Cij[i][j] += a_reg[q][i] * b_reg[q][j];
                     }
                 }
             }
@@ -114,31 +117,33 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
     }
 
     // Now store multiple CTA outputs.
-    // for(int i=0; i<TILESCALE_M; i++){
-    //     for(int j=0; j<TILESCALE_N; j++){
-    //         int I = I_base + ty + i * blockDim.y;
-    //         int J = J_base + tx + j * blockDim.x;
-    //         if(I < N && J < N){
-    //             C[I * N + J] = _Cij[i][j];
-    //         }
-    //     }
-    // }
     #pragma unroll
-    for (int i = 0; i < TILESCALE_M; i++) {
+    for(int i=0; i<TILESCALE_M; i++){
         #pragma unroll
-        for (int j = 0; j < TILESCALE_N; j++) {
-            _FTYPE_ result = 0;
-            #pragma unroll
-            for (int q = 0; q < TILESCALE_K; q++) {
-                result += _Cij[q][i][j];
-            }
+        for(int j=0; j<TILESCALE_N; j++){
             int I = I_base + ty + i * blockDim.y;
             int J = J_base + tx + j * blockDim.x;
-            if (I < N && J < N) {
-                C[I * N + J] = result;
+            if(I < N && J < N){
+                C[I * N + J] = _Cij[i][j];
             }
         }
     }
+    // #pragma unroll
+    // for (int i = 0; i < TILESCALE_M; i++) {
+    //     #pragma unroll
+    //     for (int j = 0; j < TILESCALE_N; j++) {
+    //         _FTYPE_ result = 0;
+    //         #pragma unroll
+    //         for (int q = 0; q < TILESCALE_K; q++) {
+    //             result += _Cij[q][i][j];
+    //         }
+    //         int I = I_base + ty + i * blockDim.y;
+    //         int J = J_base + tx + j * blockDim.x;
+    //         if (I < N && J < N) {
+    //             C[I * N + J] = result;
+    //         }
+    //     }
+    // }
 
     
     // for(int i=0; i<TILESCALE_M; i++){}
