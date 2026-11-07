@@ -30,7 +30,16 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
 //You should be changing the kernel here for the non naive implementation.
 __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
     // int M = N, K = N;
-    __shared__ _FTYPE_ As[TILEDIM_M][TILEDIM_K], Bs[TILEDIM_K][TILEDIM_N];
+    // extern __shared__ _FTYPE_ As[TILEDIM_M][TILEDIM_K], Bs[TILEDIM_K][TILEDIM_N];
+    extern __shared__ _FTYPE_ smem[];
+
+    _FTYPE_ (*As)[TILEDIM_K] =
+        reinterpret_cast<_FTYPE_ (*)[TILEDIM_K]>(smem);
+
+    _FTYPE_ (*Bs)[TILEDIM_N] =
+        reinterpret_cast<_FTYPE_ (*)[TILEDIM_N]>(
+            smem + TILEDIM_M * TILEDIM_K
+        );
 
     int ty = threadIdx.y, tx = threadIdx.x;
     int by = blockIdx.y, bx = blockIdx.x;
@@ -59,15 +68,41 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
 
         // once all the threads have loaded the tiles into shared memory, we can start the computation.
         int kLimit = min(TILEDIM_K, N - kk * TILEDIM_K);
-        for(int k=0; k<kLimit; k++){
+
+        for (int k = 0; k < kLimit; k++) {
+
+            _FTYPE_ a_reg[TILESCALE_M];
+            _FTYPE_ b_reg[TILESCALE_N];
+
             #pragma unroll
-            for(int i=0; i<TILESCALE_M; i++){
+            for (int i = 0; i < TILESCALE_M; i++) {
+                a_reg[i] = As[ty + i * blockDim.y][k];
+            }
+
+            #pragma unroll
+            for (int j = 0; j < TILESCALE_N; j++) {
+                b_reg[j] = Bs[k][tx + j * blockDim.x];
+            }
+
+            #pragma unroll
+            for (int i = 0; i < TILESCALE_M; i++) {
                 #pragma unroll
-                for(int j=0; j<TILESCALE_N; j++){
-                    _Cij[i][j] += As[ty + i * blockDim.y][k] * Bs[k][tx + blockDim.x * j];
+                for (int j = 0; j < TILESCALE_N; j++) {
+                    _Cij[i][j] += a_reg[i] * b_reg[j];
                 }
             }
         }
+        
+        // for(int k=0; k<kLimit; k++){
+            
+        //     #pragma unroll
+        //     for(int i=0; i<TILESCALE_M; i++){
+        //         #pragma unroll
+        //         for(int j=0; j<TILESCALE_N; j++){
+        //             _Cij[i][j] += As[ty + i * blockDim.y][k] * Bs[k][tx + blockDim.x * j];
+        //         }
+        //     }
+        // }
         __syncthreads();
 
     }
