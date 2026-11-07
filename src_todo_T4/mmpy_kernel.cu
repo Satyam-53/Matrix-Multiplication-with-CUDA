@@ -60,7 +60,9 @@ __global__ void matMul(int N, _FTYPE_ *C, _FTYPE_ *A, _FTYPE_ *B) {
         // once all the threads have loaded the tiles into shared memory, we can start the computation.
         int kLimit = min(TILEDIM_K, N - kk * TILEDIM_K);
         for(int k=0; k<kLimit; k++){
+            #pragma unroll
             for(int i=0; i<TILESCALE_M; i++){
+                #pragma unroll
                 for(int j=0; j<TILESCALE_N; j++){
                     _Cij[i][j] += As[ty + i * blockDim.y][k] * Bs[k][tx + blockDim.x * j];
                 }
