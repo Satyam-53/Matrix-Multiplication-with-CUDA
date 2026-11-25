@@ -1,8 +1,15 @@
 # Matrix Multiplication with CUDA
-Starter code for CSE260 HW2.
+## Overview
+This CSE260 project optimizes an FP32 CUDA matrix multiplication kernel on an NVIDIA Tesla T4, progressing from a naive implementation to a tiled kernel with multiple output elements computed per thread.
 
-You will only need to edit files in src_todo folder.
-Run all your commands from the root directory of the git repo.
+The optimizations include:
+- Shared-memory tiling: Cooperatively load and reuse tiles of both input matrices to reduce global-memory traffic.
+- Register blocking: Accumulate multiple output elements per thread to increase data reuse and instruction-level parallelism.
+- Thread-block and tile tuning: Compare configurations to balance register usage, shared-memory consumption, and occupancy.
+- Profiling-guided refinement: Use Nsight Compute to investigate shared-memory bank conflicts, register pressure, and MIO throttling.
+The optimized kernel achieved 3,764 GFLOP/s (3.76 TFLOP/s) for 2048 × 2048 matrices in a recorded benchmark run. Experiments also showed that increasing occupancy alone did not necessarily improve performance.
+
+The repository includes the kernel implementation, benchmark plots, comparisons with cuBLAS, and [profiling notes](findings.txt).
 
 ## Commands to build and run
 
